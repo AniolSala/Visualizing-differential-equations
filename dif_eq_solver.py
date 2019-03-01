@@ -8,7 +8,7 @@ class DiffEqSolver:
     def __init__(self, dif_equation, method='rk4'):
         """
 
-        dy must take by the arguments the time t and vector y
+        dif_equation must take by the arguments the time t and vector y
         and return a numpy like array with the same length as
         y.
 
@@ -37,7 +37,7 @@ class DiffEqSolver:
         self._method = m
 
     def next_step_newton(self, t, y):
-        raise AttributeError('This method is not implemented.')
+        raise AttributeError('This method is not implemented!')
 
     def next_step_rk2(self, t, y):
         k1 = self.dy(t, y)
