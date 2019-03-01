@@ -113,8 +113,6 @@ class DiffEqSolver:
 
         If an array is passed, the data for that lebel will be that array.
 
-        Modify data must be a function taking three
-
         The plot will be a 2D plot but default, unless the data for the z
         label is passed.
 
