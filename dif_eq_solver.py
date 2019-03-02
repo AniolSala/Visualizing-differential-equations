@@ -45,13 +45,6 @@ class SolutionObject(pd.DataFrame):
 
         return proj_3D
 
-        # 2D plot
-        if z_col is None:
-            fig, ax = plt.subplots(figsize=fig_size)
-            ax.plot(data[0], data[1], *args, **kwargs)
-
-            return ax
-
 
 class DiffEqSolver:
 
@@ -151,62 +144,12 @@ class DiffEqSolver:
         if save is True:
             np.savetxt(file_name, sol_eqs)
 
-        # Return a dataframe
+        # Create a dataframe
         self._solution = SolutionObject(
             sol_eqs, index=None, columns=column_names)
 
+        # Return a dataframe unless numpy_array is not False
         if numpy_array:
             return sol_eqs
 
         return self._solution
-
-
-def derivates(t, y):
-    """
-    Here we compute dy/dt. As the problem corresponds to a particle
-    moving on the surface of a cone, the variables describing the position
-    of the particle are z and theta (3D polar coordinates)
-
-    """
-    from scipy.constants import g
-
-    z_acc = (y[0] * y[3]**2 * tan_alpha**2 - g) / (1 + tan_alpha**2)
-    theta_acc = - 2 * y[2] * y[3] / y[0]
-
-    return np.array([y[2], y[3], z_acc, theta_acc])
-
-
-def set_initial_conditions(z0, theta0, z_vel0, theta_vel0):
-    return np.array([z0, theta0, z_vel0, theta_vel0])
-
-
-def to_cartesian(y):
-    _x = tan_alpha * y[0] * np.cos(y[1])
-    _y = tan_alpha * y[0] * np.sin(y[1])
-    _z = y[0]
-
-    return _x, _y, _z
-
-
-if __name__ == '__main__':
-
-    h = .001
-    ti, tf = 0.0, 10
-    y1_init = set_initial_conditions(1.5, 0., 0., np.pi * 2)
-
-    # Constants of the problem
-    alpha = 15
-    tan_alpha = np.tan(alpha * np.pi / 180.0)
-
-    # Solutions:
-    cone_eqs = DiffEqSolver(derivates, method='rk2')
-    sol1 = cone_eqs.solve_eqs(y1_init, ti, tf, h)
-
-# -------------------------------------------------
-    # Plot:
-    x1, y1, z1 = to_cartesian(sol1)
-
-    plot1 = sol1.fast_plot(x1, y1, 0)
-    plot1.set_xticks(np.linspace(min(x1), max(x1), 4))
-    plot1.set_yticks(np.linspace(min(x1), max(x1), 4))
-    plt.show()
