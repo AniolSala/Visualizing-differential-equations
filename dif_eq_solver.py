@@ -1,6 +1,56 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
+import pandas as pd
+
+
+class SolutionObject(pd.DataFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def fast_plot(self, x_col, y_col, z_col=None, fig_size=(9, 6),
+                  *args, **kwargs):
+        """
+        The arguments x_col, y_col and z_col must be an integer or an array. If
+        the argument is an integer then the data for that column will be takan
+        as the column number corresponding to this integer (for example, if
+        x_col=1 then the data for the x label will be the second column of the
+        solution).
+
+        If an array is passed, the data for that lebel will be that array.
+
+        The plot will be a 2D plot but default, unless the data for the z
+        label is passed.
+
+        """
+
+        data = []
+        for coord in (x_col, y_col, z_col):
+            if isinstance(coord, int):
+                data.append(self[coord])
+            else:
+                data.append(coord)
+
+        # 2D plot
+        if z_col is None:
+            fig, ax = plt.subplots(figsize=fig_size)
+            ax.plot(data[0], data[1], *args, **kwargs)
+
+            return ax
+
+        # 3D plot
+        fig = plt.figure(frameon=0)
+        proj_3D = fig.gca(projection='3d')
+        proj_3D.plot(data[0], data[1], data[2])
+
+        return proj_3D
+
+        # 2D plot
+        if z_col is None:
+            fig, ax = plt.subplots(figsize=fig_size)
+            ax.plot(data[0], data[1], *args, **kwargs)
+
+            return ax
 
 
 class DiffEqSolver:
@@ -16,6 +66,7 @@ class DiffEqSolver:
 
         self.dy = dif_equation
         self.method = method
+        self._solution = None
 
     @property
     def method(self):
@@ -73,10 +124,11 @@ class DiffEqSolver:
 
         return sol_eqs
 
-    def solve_eqs(self, y0, ti, tf, h, save=False, file_name="sol_eqs.csv"):
+    def solve_eqs(self, initial_conditions, ti, tf, h, index=None, column_names=None,
+                  numpy_array=False, save=False, file_name="sol_eqs.csv"):
 
         # Initial conditions
-        self.initial_conditions = y0
+        self.initial_conditions = initial_conditions
         self.initial_time, self.final_time = ti, tf
         self.h = h
 
@@ -93,50 +145,68 @@ class DiffEqSolver:
         self.time_steps = np.linspace(ti, tf, n_steps)
 
         # Get the trajectory:
-        sol_eqs = self.get_trajectory(y0, next_step)
+        sol_eqs = self.get_trajectory(initial_conditions, next_step)
 
         # Save the file if save is True:
         if save is True:
             np.savetxt(file_name, sol_eqs)
 
-        self._solution = sol_eqs.copy()
+        # Return a dataframe
+        self._solution = SolutionObject(
+            sol_eqs, index=None, columns=column_names)
 
-        return sol_eqs
+        if numpy_array:
+            return sol_eqs
 
-    def fast_plot(self, x_col, y_col, z_col=None, fig_size=(9, 6), *args, **kwargs):
-        """
-        The arguments x_col, y_col and z_col must be an integer or an array. If
-        the argument is an integer then the data for that column will be takan
-        as the column number corresponding to this integer (for example, if
-        x_col=1 then the data for the x label will be the second column of the
-        solution).
+        return self._solution
 
-        If an array is passed, the data for that lebel will be that array.
 
-        The plot will be a 2D plot but default, unless the data for the z
-        label is passed.
+def derivates(t, y):
+    """
+    Here we compute dy/dt. As the problem corresponds to a particle
+    moving on the surface of a cone, the variables describing the position
+    of the particle are z and theta (3D polar coordinates)
 
-        """
+    """
+    from scipy.constants import g
 
-        try:
-            trajectory = self._solution
-        except AttributeError:
-            msg = "solve_eqs method not called. No solution founded"
-            raise AttributeError(msg)
+    z_acc = (y[0] * y[3]**2 * tan_alpha**2 - g) / (1 + tan_alpha**2)
+    theta_acc = - 2 * y[2] * y[3] / y[0]
 
-        data = [trajectory[:, coord] if isinstance(
-            coord, int) else coord for coord in (x_col, y_col, z_col)]
+    return np.array([y[2], y[3], z_acc, theta_acc])
 
-        # 2D plot
-        if z_col is None:
-            fig, ax = plt.subplots(figsize=fig_size)
-            ax.plot(data[0], data[1], *args, **kwargs)
 
-            return ax
+def set_initial_conditions(z0, theta0, z_vel0, theta_vel0):
+    return np.array([z0, theta0, z_vel0, theta_vel0])
 
-        # 3D plot
-        fig = plt.figure(frameon=0)
-        proj_3D = fig.gca(projection='3d')
-        proj_3D.plot(data[0], data[1], data[2])
 
-        return proj_3D
+def to_cartesian(y):
+    _x = tan_alpha * y[0] * np.cos(y[1])
+    _y = tan_alpha * y[0] * np.sin(y[1])
+    _z = y[0]
+
+    return _x, _y, _z
+
+
+if __name__ == '__main__':
+
+    h = .001
+    ti, tf = 0.0, 10
+    y1_init = set_initial_conditions(1.5, 0., 0., np.pi * 2)
+
+    # Constants of the problem
+    alpha = 15
+    tan_alpha = np.tan(alpha * np.pi / 180.0)
+
+    # Solutions:
+    cone_eqs = DiffEqSolver(derivates, method='rk2')
+    sol1 = cone_eqs.solve_eqs(y1_init, ti, tf, h)
+
+# -------------------------------------------------
+    # Plot:
+    x1, y1, z1 = to_cartesian(sol1)
+
+    plot1 = sol1.fast_plot(x1, y1, 0)
+    plot1.set_xticks(np.linspace(min(x1), max(x1), 4))
+    plot1.set_yticks(np.linspace(min(x1), max(x1), 4))
+    plt.show()
