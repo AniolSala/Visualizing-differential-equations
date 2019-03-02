@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d.axes3d import Axes3D
-import pandas as pd
+from pandas import DataFrame
 
 
-class SolutionObject(pd.DataFrame):
+class SolutionObject(DataFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
